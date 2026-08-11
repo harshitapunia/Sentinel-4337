@@ -82,10 +82,10 @@ const FLASHLOAN_ABI = [{
     type: "function"
 }] as const;
 
-let isExecuting = false;
-let monitorInterval: NodeJS.Timeout;
+export let isExecuting = false;
+export let monitorInterval: NodeJS.Timeout;
 
-async function executeRescue() {
+export async function executeRescue() {
     console.log("⚠️ Executing rescue operation!");
     
     // 1. Calculate debt to repay - in a real bot, we would query the exact debt.
@@ -212,7 +212,7 @@ async function executeRescue() {
     }
 }
 
-async function monitor() {
+export async function monitor() {
     if (isExecuting) return;
     try {
         const data = await publicClient.readContract({
@@ -238,9 +238,11 @@ async function monitor() {
     }
 }
 
-function start() {
+export function startDaemon() {
     console.log(`Starting Sentinel Keeper Bot monitoring ${VAULT_ADDRESS}...`);
     monitorInterval = setInterval(monitor, 12000);
 }
 
-start();
+if (process.env.NODE_ENV !== 'test') {
+    startDaemon();
+}
