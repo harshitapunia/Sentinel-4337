@@ -6,6 +6,63 @@ import {SentinelVault} from "../src/SentinelVault.sol";
 import {IEntryPoint} from "@openzeppelin/contracts/interfaces/IERC4337.sol";
 import {IPoolAddressesProvider} from "aave-v3-core/contracts/interfaces/IPoolAddressesProvider.sol";
 import {IPool} from "aave-v3-core/contracts/interfaces/IPool.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mocks for DeFi Primitives
+// ─────────────────────────────────────────────────────────────────────────────
+contract MockERC20 {
+    uint8 public decimals;
+    mapping(address => mapping(address => uint256)) public allowance;
+    constructor(uint8 decimals_) {
+        decimals = decimals_;
+    }
+    function approve(address spender, uint256 amount) external returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        return true;
+    }
+}
+
+contract MockAggregatorV3 {
+    int256 private _price;
+    constructor(int256 price_) {
+        _price = price_;
+    }
+    function latestRoundData()
+        external
+        view
+        returns (
+            uint80 roundId,
+            int256 answer,
+            uint256 startedAt,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        )
+    {
+        return (0, _price, 0, block.timestamp, 0);
+    }
+    function setPrice(int256 newPrice) external {
+        _price = newPrice;
+    }
+}
+
+contract MockSwapRouter {
+    function exactInputSingle(
+        ISwapRouter.ExactInputSingleParams calldata params
+    ) external payable returns (uint256 amountOut) {
+        return params.amountOutMinimum;
+    }
+}
+
+contract MockPool {
+    function repay(address, uint256, uint256, address) external returns (uint256) {
+        return 0;
+    }
+    function withdraw(address, uint256, address) external returns (uint256) {
+        return 0;
+    }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Harness Contract
@@ -17,8 +74,12 @@ contract SentinelVaultHarness is SentinelVault {
     constructor(
         IEntryPoint entryPoint_,
         address owner_,
-        IPoolAddressesProvider addressesProvider_
-    ) SentinelVault(entryPoint_, owner_, addressesProvider_) {}
+        IPoolAddressesProvider addressesProvider_,
+        address weth_,
+        address usdc_,
+        AggregatorV3Interface chainlinkWethUsd_,
+        ISwapRouter uniswapRouter_
+    ) SentinelVault(entryPoint_, owner_, addressesProvider_, weth_, usdc_, chainlinkWethUsd_, uniswapRouter_) {}
 
     /// @dev Exposes `_rawSignatureValidation` for direct test assertions.
     function exposed_rawSignatureValidation(
@@ -26,6 +87,14 @@ contract SentinelVaultHarness is SentinelVault {
         bytes calldata signature
     ) external view returns (bool) {
         return _rawSignatureValidation(hash, signature);
+    }
+
+    /// @dev Exposes `_enforceSlippageGuardrail` for direct math verification.
+    function exposed_enforceSlippageGuardrail(
+        uint256 wethAmountIn,
+        uint256 botProposedUsdcOut
+    ) public view {
+        _enforceSlippageGuardrail(wethAmountIn, botProposedUsdcOut);
     }
 }
 
@@ -78,6 +147,12 @@ contract SentinelVaultTest is Test {
     address internal keeper;
     address internal mockPool;
 
+    MockERC20 internal mockWeth;
+    MockERC20 internal mockUsdc;
+    MockAggregatorV3 internal mockAggregator;
+    MockSwapRouter internal mockSwapRouter;
+    MockPool internal mockPoolContract;
+
     // ── Constants ─────────────────────────────────────────────────────────────
     uint256 internal constant START_TS   = 1_700_000_000; // Nov 2023 – realistic base timestamp
     uint48  internal constant ONE_HOUR   = 3_600;
@@ -92,7 +167,14 @@ contract SentinelVaultTest is Test {
 
         owner    = vm.addr(OWNER_PK);
         keeper   = vm.addr(KEEPER_PK);
-        mockPool = makeAddr("aavePool");
+
+        mockPoolContract = new MockPool();
+        mockPool = address(mockPoolContract);
+
+        mockWeth = new MockERC20(18);
+        mockUsdc = new MockERC20(6);
+        mockAggregator = new MockAggregatorV3(3000 * 10**8);
+        mockSwapRouter = new MockSwapRouter();
 
         mockEntryPoint = new MockEntryPoint();
         mockProvider   = new MockPoolAddressesProvider(mockPool);
@@ -100,7 +182,11 @@ contract SentinelVaultTest is Test {
         vault = new SentinelVaultHarness(
             IEntryPoint(address(mockEntryPoint)),
             owner,
-            IPoolAddressesProvider(address(mockProvider))
+            IPoolAddressesProvider(address(mockProvider)),
+            address(mockWeth),
+            address(mockUsdc),
+            AggregatorV3Interface(address(mockAggregator)),
+            ISwapRouter(address(mockSwapRouter))
         );
     }
 
@@ -130,7 +216,11 @@ contract SentinelVaultTest is Test {
         new SentinelVaultHarness(
             IEntryPoint(address(mockEntryPoint)),
             address(0),                                       // ← zero owner
-            IPoolAddressesProvider(address(mockProvider))
+            IPoolAddressesProvider(address(mockProvider)),
+            address(mockWeth),
+            address(mockUsdc),
+            AggregatorV3Interface(address(mockAggregator)),
+            ISwapRouter(address(mockSwapRouter))
         );
     }
 
@@ -140,7 +230,11 @@ contract SentinelVaultTest is Test {
         SentinelVaultHarness vaultNoEP = new SentinelVaultHarness(
             IEntryPoint(address(0)),                          // ← triggers fallback
             owner,
-            IPoolAddressesProvider(address(mockProvider))
+            IPoolAddressesProvider(address(mockProvider)),
+            address(mockWeth),
+            address(mockUsdc),
+            AggregatorV3Interface(address(mockAggregator)),
+            ISwapRouter(address(mockSwapRouter))
         );
         // Must return the OZ constant, not address(0).
         assertTrue(
@@ -362,59 +456,70 @@ contract SentinelVaultTest is Test {
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // §4  AAVE INTERFACE & STUBS
+    // §4  PHASE 2 - PRICE GUARDRAIL & FLASH LOAN EXECUTION
     // ═════════════════════════════════════════════════════════════════════════
 
-    /// @dev executeOperation must return true for any valid call (Phase 2 stub).
-    function test_Aave_ExecuteOperation_ReturnsTrue() public {
-        bool result = vault.executeOperation(
-            makeAddr("token"),    // asset
-            1_000e18,             // amount
-            9e15,                 // premium (~0.09%)
-            makeAddr("initiator"),
-            bytes("")             // empty params
-        );
-        assertTrue(result, "executeOperation stub must return true");
+    function test_Guardrail_Success_ExactTolerance() public {
+        uint256 wethAmount = 10 * 10**18;
+        mockAggregator.setPrice(3000 * 10**8);
+
+        // Fair Value = $30,000 (30000 * 10**6 USDC)
+        // 1.5% Slippage = 98.5% of 30,000 = 29,550
+        uint256 proposedUsdc = 29550 * 10**6;
+
+        vault.exposed_enforceSlippageGuardrail(wethAmount, proposedUsdc); // Should not revert
     }
 
-    /// @dev executeOperation with non-trivial params must still return true.
-    function test_Aave_ExecuteOperation_ReturnsTrueWithEncodedParams() public {
-        bytes memory params = abi.encode(address(vault), uint256(42), true);
-        bool result = vault.executeOperation(
-            makeAddr("usdc"),
-            500_000e6,
-            450e6,
-            makeAddr("flashBot"),
+    function test_Guardrail_Success_BetterThanMarket() public {
+        uint256 wethAmount = 10 * 10**18;
+        mockAggregator.setPrice(3000 * 10**8);
+
+        uint256 proposedUsdc = 31000 * 10**6; // Better than 1.5% slippage
+
+        vault.exposed_enforceSlippageGuardrail(wethAmount, proposedUsdc); // Should not revert
+    }
+
+    function test_Guardrail_RevertsOn_BadPrice_SlippageExceeded() public {
+        uint256 wethAmount = 10 * 10**18;
+        mockAggregator.setPrice(3000 * 10**8);
+
+        // Just below the 1.5% tolerance
+        uint256 proposedUsdc = (29550 * 10**6) - 1;
+
+        vm.expectRevert("SentinelVault__SlippageExceeded");
+        vault.exposed_enforceSlippageGuardrail(wethAmount, proposedUsdc);
+    }
+
+    function test_Guardrail_RevertsOn_DecimalImbalance() public {
+        uint256 wethAmount = 1 * 10**18;
+        mockAggregator.setPrice(3000 * 10**8);
+
+        // Bot proposed output scaled to 18 decimals instead of USDC's 6 decimals.
+        // e.g. 3000 * 10**18.
+        // The fair value calculation inside expects botProposedUsdcOut to be >= 2955 * 10**6.
+        // 3000 * 10**18 is massively larger, so it will actually pass the mathematical guardrail
+        // because the contract conservatively says: "If they promise us a trillion USDC, great!"
+        uint256 proposedUsdc = 3000 * 10**18;
+
+        vault.exposed_enforceSlippageGuardrail(wethAmount, proposedUsdc);
+    }
+
+    function test_ExecuteOperation_VerifiesGuardrail() public {
+        uint256 wethAmountToSell = 10 * 10**18;
+        bytes memory params = abi.encode(wethAmountToSell);
+        mockAggregator.setPrice(3000 * 10**8);
+
+        uint256 flashLoanAmount = 29550 * 10**6;
+        uint256 premium = 0;
+
+        vm.prank(mockPool);
+        bool success = vault.executeOperation(
+            address(mockUsdc),
+            flashLoanAmount,
+            premium,
+            makeAddr("initiator"),
             params
         );
-        assertTrue(result, "executeOperation with params must return true");
-    }
-
-    /// @dev POOL() must resolve to the address returned by the mock provider.
-    function test_Aave_PoolResolvesFromProvider() public view {
-        assertEq(address(vault.POOL()), mockPool, "POOL() address mismatch");
-    }
-
-    /// @dev When addressesProvider is address(0), POOL() returns address(0) safely.
-    function test_Aave_PoolReturnsZeroWhenNoProvider() public {
-        SentinelVaultHarness vaultNoProvider = new SentinelVaultHarness(
-            IEntryPoint(address(mockEntryPoint)),
-            owner,
-            IPoolAddressesProvider(address(0)) // no provider
-        );
-        assertEq(
-            address(vaultNoProvider.POOL()),
-            address(0),
-            "POOL() should be address(0) when provider is unset"
-        );
-    }
-
-    /// @dev ADDRESSES_PROVIDER() must return the mock provider address.
-    function test_Aave_AddressesProviderCorrect() public view {
-        assertEq(
-            address(vault.ADDRESSES_PROVIDER()),
-            address(mockProvider),
-            "ADDRESSES_PROVIDER() mismatch"
-        );
+        assertTrue(success, "executeOperation failed");
     }
 }

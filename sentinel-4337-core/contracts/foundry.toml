@@ -26,9 +26,11 @@ remappings = [
   # Uniswap v3
   "@uniswap/v3-core/=lib/v3-core/",
   "v3-core/=lib/v3-core/",
+  "@uniswap/v3-periphery/=lib/v3-periphery/",
+  "v3-periphery/=lib/v3-periphery/",
 
   # Chainlink
-  "@chainlink/=lib/chainlink/contracts/src/",
+  "@chainlink/=lib/chainlink/",
   "chainlink/=lib/chainlink/",
 
   # Forge Standard Library

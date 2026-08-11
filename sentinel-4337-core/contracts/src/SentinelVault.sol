@@ -14,6 +14,11 @@ import {IPoolAddressesProvider} from
     "aave-v3-core/contracts/interfaces/IPoolAddressesProvider.sol";
 import {IPool} from "aave-v3-core/contracts/interfaces/IPool.sol";
 
+// ─── Price Guardrail & Swap Interfaces ────────────────────────────────────────
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 /**
  * @title  SentinelVault
  * @author Sentinel-4337 Protocol
@@ -69,6 +74,13 @@ contract SentinelVault is AccountERC7579Hooked, IFlashLoanSimpleReceiver {
     /// @dev Aave V3 addresses provider — injected in constructor, read-only.
     IPoolAddressesProvider private immutable _addressesProvider;
 
+    // ─── Guardrail & Swap State ───────────────────────────────────────────────
+
+    address public immutable weth;
+    address public immutable usdc;
+    AggregatorV3Interface public immutable chainlinkWethUsd;
+    ISwapRouter public immutable uniswapRouter;
+
     // ─── Constructor ──────────────────────────────────────────────────────────
 
     /**
@@ -78,16 +90,28 @@ contract SentinelVault is AccountERC7579Hooked, IFlashLoanSimpleReceiver {
      * @param owner_              The primary signer / owner of this vault.
      * @param addressesProvider_  Aave V3 PoolAddressesProvider for this network.
      *                            Pass `address(0)` during testing / local dev.
+     * @param weth_               Address of WETH token.
+     * @param usdc_               Address of USDC token.
+     * @param chainlinkWethUsd_   Chainlink Aggregator for ETH/USD.
+     * @param uniswapRouter_      Uniswap V3 SwapRouter address.
      */
     constructor(
         IEntryPoint entryPoint_,
         address owner_,
-        IPoolAddressesProvider addressesProvider_
+        IPoolAddressesProvider addressesProvider_,
+        address weth_,
+        address usdc_,
+        AggregatorV3Interface chainlinkWethUsd_,
+        ISwapRouter uniswapRouter_
     ) {
         if (owner_ == address(0)) revert SentinelVault__ZeroAddress();
 
         owner = owner_;
         _addressesProvider = addressesProvider_;
+        weth = weth_;
+        usdc = usdc_;
+        chainlinkWethUsd = chainlinkWethUsd_;
+        uniswapRouter = uniswapRouter_;
 
         // If a custom EntryPoint is supplied use it; otherwise the base
         // `entryPoint()` function returns the OZ constant ENTRYPOINT_V09.
@@ -193,7 +217,7 @@ contract SentinelVault is AccountERC7579Hooked, IFlashLoanSimpleReceiver {
      * @dev    Resolves the active Pool address from the PoolAddressesProvider.
      *         Returns address(0) if the provider was not set (local dev).
      */
-    function POOL() external view override returns (IPool) {
+    function POOL() public view override returns (IPool) {
         if (address(_addressesProvider) == address(0)) return IPool(address(0));
         return IPool(_addressesProvider.getPool());
     }
@@ -223,20 +247,65 @@ contract SentinelVault is AccountERC7579Hooked, IFlashLoanSimpleReceiver {
         uint256 premium,
         address initiator,
         bytes calldata params
-    ) external pure override returns (bool) {
-        // ── Phase 2 Logic Injection Point ──────────────────────────────────
-        // TODO: Implement arbitrage / liquidation strategy here.
-        //       Before returning true, approve the Aave Pool for
-        //       (amount + premium) of `asset`.
-        // ───────────────────────────────────────────────────────────────────
+    ) external override returns (bool) {
+        require(msg.sender == address(POOL()), "SentinelVault__UnauthorizedCaller");
+        (initiator); // Silence unused variable warning
 
-        // Suppress unused-variable warnings for the stub phase.
-        (asset, amount, premium, initiator, params);
+        // Decode wethAmountToSell from keeper params
+        uint256 wethAmountToSell = abi.decode(params, (uint256));
+
+        // Step A: Repay the vault's Aave debt using the flash-loaned USDC
+        IERC20(asset).approve(address(POOL()), amount);
+        POOL().repay(asset, amount, 2, address(this));
+
+        // Step B: Withdraw the freed WETH collateral from Aave
+        POOL().withdraw(weth, wethAmountToSell, address(this));
+
+        // Step C: Enforce the guardrail
+        _enforceSlippageGuardrail(wethAmountToSell, amount + premium);
+
+        // Step D: Approve the Uniswap V3 Router to spend the withdrawn WETH
+        IERC20(weth).approve(address(uniswapRouter), wethAmountToSell);
+
+        // Step E: Use exactInputSingle to swap WETH for USDC
+        ISwapRouter.ExactInputSingleParams memory swapParams = ISwapRouter.ExactInputSingleParams({
+            tokenIn: weth,
+            tokenOut: asset,
+            fee: 3000,
+            recipient: address(this),
+            deadline: block.timestamp,
+            amountIn: wethAmountToSell,
+            amountOutMinimum: amount + premium,
+            sqrtPriceLimitX96: 0
+        });
+        uniswapRouter.exactInputSingle(swapParams);
+
+        // Step F: Approve Aave to pull the flash loan repayment
+        IERC20(asset).approve(address(POOL()), amount + premium);
 
         return true;
     }
 
     // ─── Internal Helpers ─────────────────────────────────────────────────────
+
+    /**
+     * @notice Enforces a strict slippage guardrail using Chainlink price feed.
+     * @param wethAmountIn The amount of WETH to be sold.
+     * @param botProposedUsdcOut The amount of USDC needed to repay the flash loan.
+     */
+    function _enforceSlippageGuardrail(uint256 wethAmountIn, uint256 botProposedUsdcOut) internal view {
+        (, int256 price, , , ) = chainlinkWethUsd.latestRoundData();
+        require(price > 0, "SentinelVault__InvalidOraclePrice");
+
+        // WETH has 18 decimals, Chainlink ETH/USD has 8 decimals, USDC has 6 decimals
+        // fairValueUsdc calculation correctly normalizes the scale (18 + 8) - 6 = 20
+        uint256 fairValueUsdc = (wethAmountIn * uint256(price)) / 10**20;
+
+        // Apply 1.5% Slippage Tolerance (9850 / 10000)
+        uint256 minimumAcceptableUsdc = (fairValueUsdc * 9850) / 10000;
+
+        require(botProposedUsdcOut >= minimumAcceptableUsdc, "SentinelVault__SlippageExceeded");
+    }
 
     /**
      * @dev Reverts unless the caller is the owner or the account itself
