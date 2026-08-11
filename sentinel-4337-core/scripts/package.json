@@ -12,7 +12,9 @@
   "type": "commonjs",
   "dependencies": {
     "dotenv": "^17.4.2",
-    "ethers": "^6.17.0"
+    "ethers": "^6.17.0",
+    "permissionless": "^0.3.7",
+    "viem": "^2.55.13"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
