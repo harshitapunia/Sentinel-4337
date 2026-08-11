@@ -1,0 +1,26 @@
+# ── Foundry Build Artifacts ──────────────────────────────────────────────────
+sentinel-4337-core/contracts/out/
+sentinel-4337-core/contracts/cache/
+
+# ── Foundry Dependencies (restored via `forge install`) ──────────────────────
+# lib/ contains third-party git submodules (OpenZeppelin, Aave, Uniswap, Chainlink).
+# They are listed in .gitmodules and restored with: cd contracts && forge install
+sentinel-4337-core/contracts/lib/
+
+# ── Node.js & Next.js ─────────────────────────────────────────────────────────
+node_modules/
+sentinel-4337-core/frontend/.next/
+sentinel-4337-core/frontend/out/
+
+# ── Environment Variables & Private Keys ─────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.env
+*.pem
+
+# ── OS / Editor Noise ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
