@@ -1,0 +1,14 @@
+type Vault @entity(immutable: false) {
+  id: Bytes! # The vault address
+  totalUsdSaved: BigInt!
+  totalGasSubsidized: BigInt!
+  rescueEvents: [RescueEvent!]! @derivedFrom(field: "vault")
+}
+
+type RescueEvent @entity(immutable: true) {
+  id: Bytes! # The transaction hash
+  vault: Vault!
+  timestamp: BigInt!
+  debtRepaid: BigInt!
+  gasCost: BigInt!
+}

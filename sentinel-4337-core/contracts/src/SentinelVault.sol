@@ -50,8 +50,13 @@ contract SentinelVault is AccountERC7579Hooked, IFlashLoanSimpleReceiver {
 
     // ─── Events ───────────────────────────────────────────────────────────────
 
+    // ─── Events ───────────────────────────────────────────────────────────────
+
     /// @dev Emitted when a session key is registered or revoked.
     event SessionKeyRegistered(address indexed keeper, uint48 validUntil);
+    
+    /// @dev Emitted when a rescue operation successfully prevents liquidation.
+    event LiquidationPrevented(address indexed vault, uint256 debtRepaid, uint256 gasCost);
 
     // ─── State ────────────────────────────────────────────────────────────────
 
@@ -282,6 +287,9 @@ contract SentinelVault is AccountERC7579Hooked, IFlashLoanSimpleReceiver {
 
         // Step F: Approve Aave to pull the flash loan repayment
         IERC20(asset).approve(address(POOL()), amount + premium);
+
+        // Mock values for the subgraph event based on amount and premium
+        emit LiquidationPrevented(address(this), amount, premium);
 
         return true;
     }
