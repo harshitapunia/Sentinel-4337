@@ -1,34 +1,14 @@
 "use client";
 
-import { useAccount, useConnect, useDisconnect, useReadContract, useWriteContract, useWaitForTransactionReceipt, useBlockNumber, useSwitchChain } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, useReadContract, useWriteContract, useWaitForTransactionReceipt, useBlockNumber, useSwitchChain, usePublicClient } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
 import { injected } from 'wagmi/connectors';
-import { FACTORY_ABI, VAULT_ABI } from '../config/abis';
-import { useQuery } from '@apollo/client/react';
-import { gql } from '@apollo/client/core';
+import { FACTORY_ABI, VAULT_ABI, AAVE_POOL_ABI } from '../config/abis';
 import { useState, useEffect, useCallback } from 'react';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const SEPOLIA_RPC = 'https://ethereum-sepolia-rpc.publicnode.com';
-
-const PROTOCOL_METRICS_QUERY = gql`
-  query GetMetrics {
-    vaults {
-      id
-      totalUsdSaved
-      totalGasSubsidized
-    }
-    rescueEvents(first: 5, orderBy: timestamp, orderDirection: desc) {
-      id
-      vault {
-        id
-      }
-      timestamp
-      debtRepaid
-      gasCost
-    }
-  }
-`;
+const ENTRY_POINT_ADDRESS = '0x433709009B8330FDa32311DF1C2AFA402eD8D009';
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
@@ -39,7 +19,11 @@ export default function Dashboard() {
   const { connect, error: connectError } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChainAsync } = useSwitchChain();
-  const { data, loading } = useQuery<any>(PROTOCOL_METRICS_QUERY);
+  const publicClient = usePublicClient();
+  
+  const [recentEvents, setRecentEvents] = useState<any[]>([]);
+  const [totalGasSponsored, setTotalGasSponsored] = useState<bigint>(BigInt(0));
+  const [logsLoading, setLogsLoading] = useState(false);
 
   const isWrongChain = isConnected && chain?.id !== sepolia.id;
 
@@ -65,7 +49,7 @@ export default function Dashboard() {
   };
 
   // Mocks for derived metrics
-  const healthFactor = "1.85";
+  // (Removed hardcoded healthFactor = "1.85")
 
   // Step 1: Get the deterministic predicted address from the factory
   const { data: predictedVaultAddress, refetch: refetchVaultAddress } = useReadContract({
@@ -112,7 +96,7 @@ export default function Dashboard() {
     }
   }, [predictedVaultAddress, blockNumber, checkVaultCode]);
 
-  const KEEPER_BOT_ADDRESS = "0x9999999999999999999999999999999999999999";
+  const KEEPER_BOT_ADDRESS = "0x97F51f58bFFD19CAB9e83e5442048cEC1e62e26d";
 
   const { data: sessionExpiry } = useReadContract({
     address: predictedVaultAddress as `0x${string}`,
@@ -123,6 +107,37 @@ export default function Dashboard() {
   });
 
   const isSessionActive = !!sessionExpiry && Number(sessionExpiry) > Math.floor(Date.now() / 1000);
+
+  const { data: aaveAccountData, refetch: refetchAaveData } = useReadContract({
+    address: '0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951', // Aave V3 Sepolia Pool
+    abi: AAVE_POOL_ABI,
+    functionName: 'getUserAccountData',
+    args: predictedVaultAddress ? [predictedVaultAddress] : undefined,
+    query: { enabled: isVaultDeployed && !!predictedVaultAddress },
+  });
+
+  // Auto-refresh Aave data every 10 seconds
+  useEffect(() => {
+    if (!isVaultDeployed) return;
+    const interval = setInterval(() => {
+      refetchAaveData();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [isVaultDeployed, refetchAaveData]);
+
+  const healthFactorDisplay = (() => {
+    if (!aaveAccountData) return null;
+    const [, totalDebtBase, , , , healthFactor] = aaveAccountData as any;
+    if (totalDebtBase === BigInt(0)) return "∞";
+    return (Number(healthFactor) / 1e18).toFixed(2);
+  })();
+
+  const totalValueProtectedDisplay = (() => {
+    if (!aaveAccountData) return "0.00";
+    const [totalCollateralBase] = aaveAccountData as any;
+    // Aave V3 USD base is 8 decimals
+    return (Number(totalCollateralBase) / 1e8).toFixed(2);
+  })();
 
   // Log state for debugging
   useEffect(() => {
@@ -195,10 +210,103 @@ export default function Dashboard() {
     }
   };
 
-  // Derived metrics (safe fallback when subgraph is unavailable)
-  const totalUsdSaved = data?.vaults ? data.vaults.reduce((acc: bigint, vault: any) => acc + BigInt(vault.totalUsdSaved), BigInt(0)) : BigInt(0);
-  const totalGasSubsidized = data?.vaults ? data.vaults.reduce((acc: bigint, vault: any) => acc + BigInt(vault.totalGasSubsidized), BigInt(0)) : BigInt(0);
-  const recentEvents = data?.rescueEvents || [];
+  // Fetch Logs from EntryPoint
+  useEffect(() => {
+    let mounted = true;
+    async function fetchLogs(isInitial = false) {
+      if (!publicClient || !predictedVaultAddress || !isVaultDeployed) return;
+      if (isInitial) setLogsLoading(true);
+      
+      try {
+        const currentBlock = await publicClient.getBlockNumber();
+        const fromBlock = currentBlock > BigInt(40000) ? currentBlock - BigInt(40000) : BigInt(0);
+
+        const logs = await publicClient.getLogs({
+          address: ENTRY_POINT_ADDRESS as `0x${string}`,
+          event: {
+            type: 'event',
+            name: 'UserOperationEvent',
+            inputs: [
+              { type: 'bytes32', name: 'userOpHash', indexed: true },
+              { type: 'address', name: 'sender', indexed: true },
+              { type: 'address', name: 'paymaster', indexed: true },
+              { type: 'uint256', name: 'nonce', indexed: false },
+              { type: 'bool', name: 'success', indexed: false },
+              { type: 'uint256', name: 'actualGasCost', indexed: false },
+              { type: 'uint256', name: 'actualGasUsed', indexed: false },
+            ]
+          },
+          args: {
+            sender: predictedVaultAddress as `0x${string}`,
+          },
+          fromBlock,
+          toBlock: 'latest',
+        });
+
+        if (!mounted) return;
+
+        let totalGas = BigInt(0);
+        const parsedEvents = await Promise.all(logs.map(async (log: any) => {
+          totalGas += log.args.actualGasCost || BigInt(0);
+          
+          const [block, receipt] = await Promise.all([
+            publicClient.getBlock({ blockNumber: log.blockNumber }),
+            publicClient.getTransactionReceipt({ hash: log.transactionHash })
+          ]);
+
+          let debtRepaidStr = "0.50 USDC"; // Fallback as requested
+          try {
+            // Find USDC Transfer event: Transfer(address indexed from, address indexed to, uint256 value)
+            const USDC_ADDRESS = '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8'.toLowerCase();
+            const TRANSFER_SIGNATURE = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+            
+            const usdcTransfer = receipt.logs.find(
+              (rLog: any) => rLog.address?.toLowerCase() === USDC_ADDRESS && rLog.topics && rLog.topics[0] === TRANSFER_SIGNATURE
+            );
+
+            if (usdcTransfer && usdcTransfer.data && usdcTransfer.data !== '0x') {
+              // The amount is the non-indexed data
+              const amount = BigInt(usdcTransfer.data);
+              debtRepaidStr = (Number(amount) / 1e6).toFixed(2) + " USDC";
+            } else {
+              console.log("No USDC Transfer log found in receipt for tx:", log.transactionHash);
+            }
+          } catch (e) {
+            console.error("Failed to parse USDC transfer amount for tx:", log.transactionHash, e);
+            // Fallback to the default rescue amount of 0.50 USDC
+            debtRepaidStr = "0.50 USDC";
+          }
+
+          return {
+            id: log.transactionHash,
+            vault: { id: log.args.sender },
+            gasCost: log.args.actualGasCost,
+            debtRepaid: debtRepaidStr,
+            timestamp: block.timestamp,
+          };
+        }));
+        
+        // Sort descending by timestamp
+        parsedEvents.sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
+
+        setTotalGasSponsored(totalGas);
+        setRecentEvents(parsedEvents);
+      } catch (err) {
+        console.error("Failed to fetch EntryPoint logs:", err);
+      } finally {
+        if (mounted && isInitial) setLogsLoading(false);
+      }
+    }
+
+    fetchLogs(true);
+    
+    // Auto-refresh logs every 10 seconds
+    const interval = setInterval(() => fetchLogs(false), 10000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [publicClient, predictedVaultAddress, isVaultDeployed]);
 
   if (!mounted) {
     return (
@@ -283,12 +391,12 @@ export default function Dashboard() {
           <div className="p-8 rounded-2xl bg-gray-900/50 border border-gray-800 relative overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
             <p className="text-gray-400 text-sm font-medium mb-2">Total Value Protected</p>
-            <p className="text-4xl font-bold text-white">${(Number(totalUsdSaved) / 1e18).toFixed(2)}</p>
+            <p className="text-4xl font-bold text-white">${totalValueProtectedDisplay}</p>
           </div>
           <div className="p-8 rounded-2xl bg-gray-900/50 border border-gray-800 relative overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
             <p className="text-gray-400 text-sm font-medium mb-2">Total Gas Sponsored</p>
-            <p className="text-4xl font-bold text-white">{(Number(totalGasSubsidized) / 1e18).toFixed(4)} ETH</p>
+            <p className="text-4xl font-bold text-white">{(Number(totalGasSponsored) / 1e18).toFixed(4)} ETH</p>
           </div>
         </section>
 
@@ -316,8 +424,20 @@ export default function Dashboard() {
                 <div>
                   <p className="text-gray-400 mb-1">Aave Health Factor</p>
                   <div className="flex items-end gap-3">
-                    <span className="text-5xl font-black text-emerald-400">{healthFactor}</span>
-                    <span className="text-emerald-400/70 text-sm font-medium mb-2">[SAFE]</span>
+                    <span className={`text-5xl font-black transition-colors duration-500 ${
+                      healthFactorDisplay !== null && healthFactorDisplay !== "∞" && parseFloat(healthFactorDisplay) < 3.5
+                        ? "text-red-500"
+                        : "text-emerald-400"
+                    }`}>
+                      {healthFactorDisplay === null ? "—" : healthFactorDisplay}
+                    </span>
+                    <span className={`text-sm font-medium mb-2 transition-colors duration-500 ${
+                      healthFactorDisplay !== null && healthFactorDisplay !== "∞" && parseFloat(healthFactorDisplay) < 3.5
+                        ? "text-red-500/70"
+                        : "text-emerald-400/70"
+                    }`}>
+                      {healthFactorDisplay !== null && healthFactorDisplay !== "∞" && parseFloat(healthFactorDisplay) < 3.5 ? "[AT RISK]" : "[SAFE]"}
+                    </span>
                   </div>
                 </div>
                 <div className="flex flex-col items-center">
@@ -402,7 +522,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
-                {loading ? (
+                {logsLoading ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-8 text-center text-gray-500">Loading ledger...</td>
                   </tr>
@@ -413,9 +533,13 @@ export default function Dashboard() {
                 ) : (
                   recentEvents.map((ev: any) => (
                     <tr key={ev.id} className="hover:bg-gray-800/20 transition-colors">
-                      <td className="px-6 py-4 font-mono text-indigo-400">{ev.id.slice(0, 10)}...</td>
+                      <td className="px-6 py-4 font-mono text-indigo-400">
+                        <a href={`https://sepolia.etherscan.io/tx/${ev.id}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          {ev.id.slice(0, 10)}...
+                        </a>
+                      </td>
                       <td className="px-6 py-4 font-mono">{ev.vault.id.slice(0, 8)}...</td>
-                      <td className="px-6 py-4 text-emerald-400">+${(Number(ev.debtRepaid) / 1e18).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-emerald-400">{ev.debtRepaid}</td>
                       <td className="px-6 py-4 text-purple-400">{(Number(ev.gasCost) / 1e18).toFixed(4)} ETH</td>
                       <td className="px-6 py-4 text-gray-400">{new Date(Number(ev.timestamp) * 1000).toLocaleString()}</td>
                     </tr>

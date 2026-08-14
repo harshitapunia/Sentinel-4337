@@ -12,7 +12,7 @@ contract SentinelVaultFactory {
     // ─── Hardcoded Sepolia Configuration ──────────────────────────────
     // To keep the factory deployment simple via `forge create` without args:
     address constant ENTRY_POINT = address(0); // Uses default EntryPoint v0.9
-    address constant AAVE_ADDRESSES_PROVIDER = 0x012bAC543418010b2A8B4019A18115Dc51c4A1B4;
+    address constant AAVE_ADDRESSES_PROVIDER = 0x012bAC54348C0E635dCAc9D5FB99f06F24136C9A;
     address constant WETH = 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14;
     address constant USDC = 0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8;
     address constant CHAINLINK_ETH_USD = 0x694AA1769357215DE4FAC081bf1f309aDC325306;
