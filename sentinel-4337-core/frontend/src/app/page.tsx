@@ -310,13 +310,13 @@ export default function Dashboard() {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-gray-950 text-white selection:bg-indigo-500/30 p-8">
-        <header className="flex justify-between items-center mb-8 border-b border-gray-800 pb-4">
+      <div className="min-h-screen bg-rose-50 text-slate-800 selection:bg-rose-500/30 p-8">
+        <header className="flex justify-between items-center mb-8 border-b border-rose-100 pb-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">S</div>
-            <span className="text-xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">Sentinel-4337</span>
+            <span className="text-xl font-bold bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent">Sentinel-4337</span>
           </div>
-          <button className="bg-indigo-600 opacity-50 text-white font-medium px-5 py-2 rounded-xl cursor-not-allowed">
+          <button className="bg-rose-400 opacity-50 text-white font-medium px-5 py-2 rounded-xl cursor-not-allowed">
             Loading...
           </button>
         </header>
@@ -325,25 +325,32 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-rose-50 text-slate-800 selection:bg-rose-500/30">
       {/* Header */}
-      <header className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">S</div>
-            <span className="text-xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">Sentinel-4337</span>
+      <header className="border-b border-orange-100/50 bg-white/70 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold text-white text-lg shadow-lg shadow-purple-200">S</div>
+            <span className="text-3xl font-extrabold bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent">Sentinel-4337</span>
           </div>
           {isConnected ? (
             <button
               onClick={() => disconnect()}
-              className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-medium py-2 px-4 rounded-xl transition-all"
+              className="group flex items-center justify-center min-w-[160px] bg-white shadow-md shadow-rose-100 border border-transparent hover:border-rose-200 hover:shadow-rose-200 font-medium py-2.5 px-6 rounded-full transition-all duration-300"
             >
-              Disconnect {address?.slice(0, 6)}...{address?.slice(-4)}
+              <div className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse group-hover:hidden"></div>
+              <span className="text-slate-700 group-hover:hidden tracking-wide">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+              <span className="text-rose-500 hidden group-hover:flex items-center tracking-wide font-bold">
+                <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Disconnect
+              </span>
             </button>
           ) : (
             <button
               onClick={handleConnect}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-5 rounded-xl transition-all shadow-lg shadow-indigo-500/25 active:scale-95 flex items-center gap-2"
+              className="bg-white hover:bg-rose-50 text-slate-700 border border-transparent hover:border-rose-200 shadow-md shadow-rose-100 font-medium py-2.5 px-6 rounded-full transition-all duration-300 active:scale-95 flex items-center gap-2"
             >
               <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask" className="w-5 h-5" />
               Connect MetaMask
@@ -388,53 +395,53 @@ export default function Dashboard() {
 
         {/* Hero Metrics */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="p-8 rounded-2xl bg-gray-900/50 border border-gray-800 relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <p className="text-gray-400 text-sm font-medium mb-2">Total Value Protected</p>
-            <p className="text-4xl font-bold text-white">${totalValueProtectedDisplay}</p>
+          <div className="p-8 rounded-2xl bg-white shadow-xl shadow-rose-100/50 border border-rose-100 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-rose-50 to-orange-50 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <p className="text-slate-500 text-sm font-medium mb-2 relative z-10">Total Value Protected</p>
+            <p className="text-4xl font-bold text-slate-800 relative z-10">${totalValueProtectedDisplay}</p>
           </div>
-          <div className="p-8 rounded-2xl bg-gray-900/50 border border-gray-800 relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <p className="text-gray-400 text-sm font-medium mb-2">Total Gas Sponsored</p>
-            <p className="text-4xl font-bold text-white">{(Number(totalGasSponsored) / 1e18).toFixed(4)} ETH</p>
+          <div className="p-8 rounded-2xl bg-white shadow-xl shadow-rose-100/50 border border-rose-100 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-teal-50 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <p className="text-slate-500 text-sm font-medium mb-2 relative z-10">Total Gas Sponsored</p>
+            <p className="text-4xl font-bold text-slate-800 relative z-10">{(Number(totalGasSponsored) / 1e18).toFixed(4)} ETH</p>
           </div>
         </section>
 
         {/* User Vault Control */}
-        <section className="p-8 rounded-3xl bg-gradient-to-b from-gray-800/50 to-gray-900/50 border border-gray-800">
-          <h2 className="text-2xl font-bold mb-6">Vault Dashboard</h2>
+        <section className="p-8 rounded-3xl bg-white shadow-xl shadow-rose-100/50 border border-rose-100">
+          <h2 className="text-2xl font-bold mb-6 text-slate-800">Vault Dashboard</h2>
           {!isConnected ? (
             <div className="text-center py-12">
-              <p className="text-gray-400 mb-6">Connect your wallet to manage your Sentinel Vault.</p>
+              <p className="text-slate-500 mb-6">Connect your wallet to manage your Sentinel Vault.</p>
             </div>
           ) : isVaultDeployed ? (
-            <div className="flex flex-col items-center justify-center p-8 bg-green-900/20 border border-green-500/50 rounded-xl">
-              <h3 className="text-2xl font-bold text-green-400 mb-2">Vault Active</h3>
-              <p className="text-slate-300">Your Sentinel Vault is deployed at:</p>
+            <div className="flex flex-col items-center justify-center p-8 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <h3 className="text-2xl font-bold text-emerald-600 mb-2">Vault Active</h3>
+              <p className="text-slate-600">Your Sentinel Vault is deployed at:</p>
               <a
                 href={`https://sepolia.etherscan.io/address/${predictedVaultAddress}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-400 hover:underline font-mono mt-2"
+                className="text-orange-500 hover:underline font-mono mt-2"
               >
                 {String(predictedVaultAddress)}
               </a>
 
-              <div className="mt-8 w-full border-t border-green-500/20 pt-6 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="mt-8 w-full border-t border-emerald-200/50 pt-6 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div>
-                  <p className="text-gray-400 mb-1">Aave Health Factor</p>
+                  <p className="text-slate-500 mb-1">Aave Health Factor</p>
                   <div className="flex items-end gap-3">
                     <span className={`text-5xl font-black transition-colors duration-500 ${
                       healthFactorDisplay !== null && healthFactorDisplay !== "∞" && parseFloat(healthFactorDisplay) < 3.5
                         ? "text-red-500"
-                        : "text-emerald-400"
+                        : "text-emerald-600"
                     }`}>
                       {healthFactorDisplay === null ? "—" : healthFactorDisplay}
                     </span>
                     <span className={`text-sm font-medium mb-2 transition-colors duration-500 ${
                       healthFactorDisplay !== null && healthFactorDisplay !== "∞" && parseFloat(healthFactorDisplay) < 3.5
-                        ? "text-red-500/70"
-                        : "text-emerald-400/70"
+                        ? "text-red-500/80"
+                        : "text-emerald-600/80"
                     }`}>
                       {healthFactorDisplay !== null && healthFactorDisplay !== "∞" && parseFloat(healthFactorDisplay) < 3.5 ? "[AT RISK]" : "[SAFE]"}
                     </span>
@@ -443,7 +450,7 @@ export default function Dashboard() {
                 <div className="flex flex-col items-center">
                   <button
                     onClick={handleApproveSessionKey}
-                    className="px-8 py-3 bg-white hover:bg-gray-100 text-gray-950 font-medium rounded-xl transition-all shadow-xl active:scale-95 flex items-center gap-2"
+                    className="px-8 py-3 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 font-medium rounded-xl transition-colors duration-300 shadow-sm active:scale-95 flex items-center gap-2"
                   >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -452,14 +459,14 @@ export default function Dashboard() {
                   </button>
                   <div className="mt-3 text-sm">
                     {isSessionActive ? (
-                      <span className="text-emerald-400 font-medium flex items-center gap-1">
+                      <span className="text-emerald-600 font-medium flex items-center gap-1">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         Session Key Active (Expires: {new Date(Number(sessionExpiry) * 1000).toLocaleDateString()})
                       </span>
                     ) : (
-                      <span className="text-gray-500 font-medium flex items-center gap-1">
+                      <span className="text-slate-400 font-medium flex items-center gap-1">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
@@ -472,17 +479,17 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto bg-indigo-500/10 rounded-full flex items-center justify-center mb-6">
-                <svg className="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-16 h-16 mx-auto bg-rose-50 rounded-full flex items-center justify-center mb-6">
+                <svg className="w-8 h-8 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-2">No Vault Found</h3>
-              <p className="text-gray-400 mb-8 max-w-md mx-auto">Deploy your smart account vault to start protecting your DeFi positions from liquidation.</p>
+              <h3 className="text-xl font-semibold mb-2 text-slate-800">No Vault Found</h3>
+              <p className="text-slate-500 mb-8 max-w-md mx-auto">Deploy your smart account vault to start protecting your DeFi positions from liquidation.</p>
               <button
                 onClick={handleDeploy}
                 disabled={isDeploying}
-                className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:opacity-50 text-white font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/25 active:scale-95 flex items-center justify-center mx-auto gap-2"
+                className="px-8 py-3 bg-rose-400 hover:bg-rose-500 disabled:bg-rose-300 disabled:opacity-50 text-white font-medium rounded-xl transition-all shadow-lg shadow-rose-200 active:scale-95 flex items-center justify-center mx-auto gap-2"
               >
                 {isDeploying ? (
                   <>
@@ -504,44 +511,53 @@ export default function Dashboard() {
 
         {/* Transaction History Ledger */}
         <section>
-          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-            <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Recent Rescues
-          </h3>
-          <div className="overflow-x-auto rounded-xl border border-gray-800 bg-gray-900/30">
+          <div className="mb-6">
+            <h3 className="text-xl font-bold flex items-center gap-3 text-slate-800">
+              <div className="bg-rose-100 text-rose-500 rounded-lg p-2 flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              Recent Rescues
+            </h3>
+            <p className="text-slate-500 text-sm mt-1 ml-11">Automated on-chain vault protection history</p>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-orange-100/60 bg-white shadow-xl shadow-rose-100/40">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-800/50 text-gray-400">
+              <thead className="bg-rose-50/40 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 <tr>
-                  <th className="px-6 py-4 font-medium">Tx Hash</th>
-                  <th className="px-6 py-4 font-medium">Vault</th>
-                  <th className="px-6 py-4 font-medium">Debt Repaid</th>
-                  <th className="px-6 py-4 font-medium">Gas Sponsored</th>
-                  <th className="px-6 py-4 font-medium">Time</th>
+                  <th className="px-6 py-5">Tx Hash</th>
+                  <th className="px-6 py-5">Vault</th>
+                  <th className="px-6 py-5">Debt Repaid</th>
+                  <th className="px-6 py-5">Gas Sponsored</th>
+                  <th className="px-6 py-5">Time</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800">
+              <tbody>
                 {logsLoading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">Loading ledger...</td>
+                    <td colSpan={5} className="px-6 py-8 text-center text-slate-400">Loading ledger...</td>
                   </tr>
                 ) : recentEvents.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No rescue events found.</td>
+                    <td colSpan={5} className="px-6 py-8 text-center text-slate-400">No rescue events found.</td>
                   </tr>
                 ) : (
                   recentEvents.map((ev: any) => (
-                    <tr key={ev.id} className="hover:bg-gray-800/20 transition-colors">
-                      <td className="px-6 py-4 font-mono text-indigo-400">
+                    <tr key={ev.id} className="hover:bg-rose-50/30 transition-colors duration-200 border-b border-orange-50/50 last:border-b-0">
+                      <td className="px-6 py-5 font-mono text-rose-500 font-medium">
                         <a href={`https://sepolia.etherscan.io/tx/${ev.id}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
                           {ev.id.slice(0, 10)}...
                         </a>
                       </td>
-                      <td className="px-6 py-4 font-mono">{ev.vault.id.slice(0, 8)}...</td>
-                      <td className="px-6 py-4 text-emerald-400">{ev.debtRepaid}</td>
-                      <td className="px-6 py-4 text-purple-400">{(Number(ev.gasCost) / 1e18).toFixed(4)} ETH</td>
-                      <td className="px-6 py-4 text-gray-400">{new Date(Number(ev.timestamp) * 1000).toLocaleString()}</td>
+                      <td className="px-6 py-5 font-mono text-slate-600 text-sm">{ev.vault.id.slice(0, 8)}...</td>
+                      <td className="px-6 py-5">
+                        <span className="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-xs font-medium">
+                          {ev.debtRepaid}
+                        </span>
+                      </td>
+                      <td className="px-6 py-5 text-slate-700 font-medium">{(Number(ev.gasCost) / 1e18).toFixed(4)} ETH</td>
+                      <td className="px-6 py-5 text-slate-400 text-xs">{new Date(Number(ev.timestamp) * 1000).toLocaleString()}</td>
                     </tr>
                   ))
                 )}
