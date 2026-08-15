@@ -27,17 +27,22 @@ Enter **Sentinel-4337**. We transform your vulnerable EOA setup into a fortified
 
 ---
 
-## ✨ Core Features & 🔮 Future Scope
+## ✨ Core Features
 
-### ✨ Core Features
-*   🛡️ **Autonomous Liquidation Protection (Aave V3):** Automatically detects risky health factors and executes split-second rescue operations to save your collateral.
-*   🧩 **Modular Account Abstraction (ERC-4337):** Upgrades your user experience by utilizing powerful Smart Accounts under the hood.
-*   🔐 **Advanced Security via ERC-7579 Session Keys:** Our automated bot operates securely using restricted **Session Keys**. It can perform *only* necessary actions (like repaying debt or adding collateral) without exposing or controlling your main private key.
-*   ⚡ **Fault-Tolerant Execution:** Features a Self-funded EntryPoint fallback mechanism, ensuring your rescue transactions are reliably executed even during adverse network conditions.
-*   📊 **Real-Time Next.js Dashboard:** A sleek, intuitive, and highly responsive frontend where you can monitor your Vault's Total Value Protected, live Health Factor, and a log of recent rescue operations.
+*   🛡️ **Autonomous Liquidation Protection (Aave V3)**
+    Sentinel-4337 constantly monitors your Aave positions. If your health factor drops dangerously close to the liquidation threshold, the bot instantly constructs a transaction to either add collateral or repay debt, saving your position from severe liquidation penalties and asset loss.
 
-### 🔮 Future Scope 📈
-*   🌐 **The Graph Protocol Integration:** We are actively planning the integration of Subgraphs for scalable, lightning-fast, and decentralized historical analytics querying directly on the frontend dashboard.
+*   🧩 **Modular Account Abstraction (ERC-4337)**
+    By leveraging Smart Accounts instead of traditional EOAs, we unlock programmable logic for your wallet. This allows for gas sponsorship, transaction batching, and highly customizable execution flows, vastly upgrading the standard Web3 user experience.
+
+*   🔐 **Advanced Security via ERC-7579 Session Keys**
+    Security is paramount. Our automated keeper bot does *not* hold your primary private key. Instead, you cryptographically delegate specific, tightly-scoped permissions to a "Session Key" held by the bot. This key can *only* perform rescue operations on your behalf, minimizing the attack surface entirely.
+
+*   ⚡ **Fault-Tolerant Execution**
+    DeFi operates in a chaotic environment. Our architecture includes a Self-funded EntryPoint fallback mechanism. If standard transaction relays face congestion or fail, Sentinel-4337 can seamlessly shift to alternate execution paths to guarantee your rescue transaction goes through when seconds count.
+
+*   📊 **Real-Time Next.js Dashboard**
+    A sleek, intuitive, and highly responsive frontend interface. From your personal dashboard, you can monitor your Vault's **Total Value Protected**, track your **Live Health Factor** in real-time, and audit a comprehensive historical log of all automated rescue operations.
 
 ---
 
