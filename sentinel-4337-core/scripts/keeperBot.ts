@@ -7,7 +7,7 @@ dotenv.config({ path: "../frontend/.env.local" });
 // Configuration
 const RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
 const AAVE_POOL_ADDRESS = "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951";
-const VAULT_ADDRESS = "0x6bf444cE0F429510024A2B8f40e2657508cCa5f1";
+const VAULT_ADDRESS = "0x09e0709ad53C9d087668c289A25c3921e0F02277";
 const POLLING_INTERVAL_MS = 15000; // 15 seconds
 
 // ABIs

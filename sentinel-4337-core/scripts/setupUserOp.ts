@@ -24,7 +24,7 @@ const ENTRY_POINT_ABI = [
 const WETH_ADDRESS = "0xC558DBdd856501FCd9aaF1E62eae57A9F0629a3c";
 const AAVE_POOL_ADDRESS = "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951";
 const USDC_ADDRESS = "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8"; // Sepolia USDC
-const VAULT_ADDRESS = "0x6bf444cE0F429510024A2B8f40e2657508cCa5f1";
+const VAULT_ADDRESS = "0x09e0709ad53C9d087668c289A25c3921e0F02277";
 const ENTRY_POINT_ADDRESS = "0x433709009B8330FDa32311DF1C2AFA402eD8D009";
 
 async function main() {
@@ -42,9 +42,9 @@ async function main() {
   // Step 1: Mint Test WETH to your wallet
   // ==========================================
   const weth = new ethers.Contract(WETH_ADDRESS, WETH_ABI, wallet);
-  const amountToMint = ethers.parseEther("0.001"); // Using 0.001 WETH since user wallet only has 0.0078 ETH left
+  const amountToMint = ethers.parseEther("0.015"); // Wrap 0.015 WETH for sufficient collateral
   
-  console.log("Wrapping 0.001 Sepolia ETH to WETH...");
+  console.log("Wrapping 0.015 Sepolia ETH to WETH...");
   try {
     const depositTx = await weth.deposit({ value: amountToMint });
     await depositTx.wait();
@@ -57,7 +57,7 @@ async function main() {
   // ==========================================
   // Step 2: Send WETH to Vault
   // ==========================================
-  console.log(`Transferring 5 WETH to Vault (${VAULT_ADDRESS})...`);
+  console.log(`Transferring 0.015 WETH to Vault (${VAULT_ADDRESS})...`);
   const transferTx = await weth.transfer(VAULT_ADDRESS, amountToMint);
   await transferTx.wait();
   console.log("Transfer to Vault complete.");
@@ -78,9 +78,10 @@ async function main() {
   console.log("Preparing UserOperation...");
   
   const aavePool = new ethers.Contract(AAVE_POOL_ADDRESS, AAVE_POOL_ABI);
+  const supplyAmount = ethers.parseEther("0.015"); // Supply 0.015 WETH
   const supplyData = aavePool.interface.encodeFunctionData("supply", [
     WETH_ADDRESS,
-    amountToMint,
+    supplyAmount,
     VAULT_ADDRESS,
     0
   ]);
@@ -96,7 +97,7 @@ async function main() {
   ]);
 
   // The vault needs to: 1. Approve Aave to spend WETH, 2. Supply WETH, 3. Borrow USDC
-  const approveData = weth.interface.encodeFunctionData("approve", [AAVE_POOL_ADDRESS, amountToMint]);
+  const approveData = weth.interface.encodeFunctionData("approve", [AAVE_POOL_ADDRESS, supplyAmount]);
 
   // ERC-7579 BATCH Mode Encoding: 0x01 (Batch) + 31 bytes of zeros
   const BATCH_MODE = "0x0100000000000000000000000000000000000000000000000000000000000000";
@@ -153,9 +154,9 @@ async function main() {
   userOp.signature = signature;
 
   // Deposit ETH to EntryPoint for the Vault to pay for its own UserOp gas
-  console.log("Depositing 0.001 ETH to EntryPoint for the Vault...");
+  console.log("Depositing 0.005 ETH to EntryPoint for the Vault...");
   const epContract = new ethers.Contract(ENTRY_POINT_ADDRESS, ["function depositTo(address account) payable"], wallet);
-  const depositEpTx = await epContract.depositTo(VAULT_ADDRESS, { value: ethers.parseEther("0.001") });
+  const depositEpTx = await epContract.depositTo(VAULT_ADDRESS, { value: ethers.parseEther("0.005") });
   await depositEpTx.wait();
   console.log("EntryPoint deposit complete.");
 
