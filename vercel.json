@@ -1,0 +1,7 @@
+{
+  "rootDirectory": "sentinel-4337-core/frontend",
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install --legacy-peer-deps"
+}
