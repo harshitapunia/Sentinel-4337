@@ -432,18 +432,18 @@ export default function Dashboard() {
                   <p className="text-slate-500 mb-1">Aave Health Factor</p>
                   <div className="flex items-end gap-3">
                     <span className={`text-5xl font-black transition-colors duration-500 ${
-                      healthFactorDisplay !== null && healthFactorDisplay !== "∞" && parseFloat(healthFactorDisplay) < 3.5
+                      healthFactorDisplay !== null && healthFactorDisplay !== "∞" && parseFloat(healthFactorDisplay) < 3.2
                         ? "text-red-500"
                         : "text-emerald-600"
                     }`}>
                       {healthFactorDisplay === null ? "—" : healthFactorDisplay}
                     </span>
                     <span className={`text-sm font-medium mb-2 transition-colors duration-500 ${
-                      healthFactorDisplay !== null && healthFactorDisplay !== "∞" && parseFloat(healthFactorDisplay) < 3.5
+                      healthFactorDisplay !== null && healthFactorDisplay !== "∞" && parseFloat(healthFactorDisplay) < 3.2
                         ? "text-red-500/80"
                         : "text-emerald-600/80"
                     }`}>
-                      {healthFactorDisplay !== null && healthFactorDisplay !== "∞" && parseFloat(healthFactorDisplay) < 3.5 ? "[AT RISK]" : "[SAFE]"}
+                      {healthFactorDisplay !== null && healthFactorDisplay !== "∞" && parseFloat(healthFactorDisplay) < 3.2 ? "[AT RISK]" : "[SAFE]"}
                     </span>
                   </div>
                 </div>

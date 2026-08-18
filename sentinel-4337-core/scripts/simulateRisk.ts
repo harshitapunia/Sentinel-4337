@@ -1,7 +1,9 @@
 import { ethers } from "ethers";
 import * as dotenv from "dotenv";
+import * as path from "path";
 
-dotenv.config({ path: "../frontend/.env.local" }); // Load from frontend where it's already saved
+// Resolve path relative to this script file (scripts/ → ../frontend/.env.local)
+dotenv.config({ path: path.resolve(__dirname, "../frontend/.env.local") });
 
 const AAVE_POOL_ABI = [
   "function getUserAccountData(address user) view returns (uint256 totalCollateralBase, uint256 totalDebtBase, uint256 availableBorrowsBase, uint256 currentLiquidationThreshold, uint256 ltv, uint256 healthFactor)",
