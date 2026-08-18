@@ -26,8 +26,8 @@ const ENTRY_POINT_ABI = [
 const USDC_ADDRESS = "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8";
 const ENTRY_POINT_ADDRESS = "0x433709009B8330FDa32311DF1C2AFA402eD8D009";
 
-// Threshold configuration (3.2 scaled to 18 decimals)
-const DANGER_THRESHOLD = ethers.parseUnits("3.2", 18);
+// Threshold configuration (3.0 scaled to 18 decimals)
+const DANGER_THRESHOLD = ethers.parseUnits("3.0", 18);
 
 async function triggerRescueOperation(currentHF: bigint) {
   console.log(`\n🚨 [DANGER] Triggering Rescue Operation!`);
